@@ -1,7 +1,8 @@
-from loguru import logger as log
 import pandas as pd
+from loguru import logger as log
 
-from collectors import get_scrapingant_proxies, get_socksproxy_proxies
+from collectors import (get_freeproxylist_proxies, get_proxylist_proxies,
+                        get_scrapingant_proxies, get_socksproxy_proxies)
 
 
 class ProxyManager:
@@ -26,13 +27,22 @@ class ProxyManager:
     def collect_proxies(self) -> None:
         log.info("Collecting proxies")
         dfs = []
-        for collector in (get_socksproxy_proxies, get_scrapingant_proxies):
+        for collector in (
+            get_socksproxy_proxies,
+            get_scrapingant_proxies,
+            get_freeproxylist_proxies,
+            get_proxylist_proxies,
+        ):
             df = collector()
             if df is None:
                 log.warning("Failed to collect proxies from this source")
             dfs.append(df)
 
         df = pd.concat(dfs, ignore_index=True)
+
+        # Some countries may be None so they are replaced with "Unknown"
+        df["country"] = df["country"].fillna("Unknown")
+
         # Identify and drop duplicates based on address and protocol
         self._proxies_df = df[~df.duplicated(subset=["ip", "port", "protocol"])]
 
